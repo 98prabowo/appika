@@ -1,4 +1,4 @@
-# 🌊 appika
+# ⚙️ appika
 
 A Command-line tool to search and download IPA file from [App Store](https://www.apple.com/app-store).
 
