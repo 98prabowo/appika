@@ -154,7 +154,7 @@ impl Keychain for KeychainService {
 fn make_dictionary(keys: Vec<CFString>, values: Vec<CFString>) -> CFDictionary<CFString, CFString> {
     let kv_pairs: &Vec<(CFString, CFString)> = &keys.into_iter()
         .zip(values)
-        .collect::<Vec<_>>();
+        .collect();
 
     CFDictionary::from_CFType_pairs(kv_pairs)
 }
