@@ -40,8 +40,8 @@ impl Keychain for KeychainService {
 
         let values: Vec<CFString> = vec![
             CFString::new(constants::SECURITY_KEY_CLASS_GENERIC_PASSWORD),
-            service.clone(),
-            account.clone(),
+            service,
+            account,
             CFString::new(password),
         ];
 
@@ -70,8 +70,8 @@ impl Keychain for KeychainService {
 
         let values: Vec<CFString> = vec![
             CFString::new(constants::SECURITY_KEY_CLASS_GENERIC_PASSWORD),
-            service.clone(),
-            account.clone(),
+            service,
+            account,
             CFString::new("true"),
             CFString::new(constants::SECURITY_KEY_MATCH_LIMIT_ONE),
         ];
@@ -104,8 +104,8 @@ impl Keychain for KeychainService {
 
         let values: Vec<CFString> = vec![
             CFString::new(constants::SECURITY_KEY_CLASS_GENERIC_PASSWORD),
-            service.clone(),
-            account.clone(),
+            service,
+            account,
         ];
 
         let query: CFDictionaryRef = make_dictionary(keys, values).as_concrete_TypeRef();
@@ -135,8 +135,8 @@ impl Keychain for KeychainService {
 
         let values: Vec<CFString> = vec![
             CFString::new(constants::SECURITY_KEY_CLASS_GENERIC_PASSWORD),
-            service.clone(),
-            account.clone(),
+            service,
+            account,
         ];
 
         let query: CFDictionaryRef = make_dictionary(keys, values).as_concrete_TypeRef();
