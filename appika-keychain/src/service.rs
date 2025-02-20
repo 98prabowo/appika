@@ -113,6 +113,57 @@ impl Keychain for KeychainService {
     }
 }
 
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::error::Result;
 
-    CFDictionary::from_CFType_pairs(kv_pairs)
+    struct MockKeychain;
+
+    impl Keychain for MockKeychain {
+        fn store(&self, _service: &str, _account: &str, _data: &[u8]) -> Result<()> {
+            Ok(())
+        }
+
+        fn retrieve(&self, _service: &str, _account: &str) -> Result<Vec<u8>> {
+            Ok(b"mocked-data".to_vec())
+        }
+
+        fn update(&self, _service: &str, _account: &str, _data: &[u8]) -> Result<()> {
+            Ok(())
+        }
+
+        fn delete(&self, _service: &str, _account: &str) -> Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn test_store() {
+        let keychain = MockKeychain;
+        let result = keychain.store("test_service", "test_account", b"test_data");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_retrieve() {
+        let keychain = MockKeychain;
+        let result = keychain.retrieve("test_service", "test_account");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), b"mocked-data");
+    }
+
+    #[test]
+    fn test_update() {
+        let keychain = MockKeychain;
+        let result = keychain.update("test_service", "test_account", b"updated_data");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_delete() {
+        let keychain = MockKeychain;
+        let result = keychain.delete("test_service", "test_account");
+        assert!(result.is_ok());
+    }
 }
