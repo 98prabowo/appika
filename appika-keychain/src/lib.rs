@@ -8,8 +8,8 @@ pub use error::{Result, Error};
 pub use service::KeychainService;
 
 pub trait Keychain {
-    fn store_password(&self, service: &str, account: &str, password: &str) -> error::Result<()>;
-    fn get_password(&self, service: &str, account: &str) -> error::Result<String>;
-    fn update_password(&self, service: &str, account: &str, new_password: &str) -> error::Result<()>;
-    fn delete_password(&self, service: &str, account: &str) -> error::Result<()>;
+    fn store(&self, service: &str, account: &str, data: &[u8]) -> Result<()>;
+    fn retrieve(&self, service: &str, account: &str) -> Result<Vec<u8>>;
+    fn update(&self, service: &str, account: &str, data: &[u8]) -> Result<()>;
+    fn delete(&self, service: &str, account: &str) -> Result<()>;
 }
