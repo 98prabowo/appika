@@ -1,16 +1,15 @@
-use std::{
-    ptr::null_mut, str::from_utf8
-};
+use std::ptr::null_mut;
 
 use core_foundation::{
-    base::{CFTypeRef, TCFType}, 
-    dictionary::{CFDictionary, CFDictionaryRef}, 
-    string::{CFString, CFStringRef}
+    base::{CFType, CFTypeRef, TCFType}, 
+    data::CFData, 
+    dictionary::CFDictionary, 
+    string::CFString
 };
 
 use crate::{
     constants, 
-    error,
+    error::Result,
     ffi::{SecItemAdd, SecItemCopyMatching, SecItemDelete, SecItemUpdate}, 
     os_status::OSStatus,
     Keychain,
@@ -25,29 +24,19 @@ impl KeychainService {
 }
 
 impl Keychain for KeychainService {
-    fn store_password(&self, service: &str, account: &str, password: &str) -> error::Result<()> {
+    fn store(&self, service: &str, account: &str, data: &[u8]) -> Result<()> {
         let service: CFString = CFString::new(service);
         let account: CFString = CFString::new(account);
-        let password: &[u8] = password.as_bytes();
-        let password = from_utf8(password)?;
+        let value = CFData::from_buffer(data);
 
-        let keys: Vec<CFString> = vec![
-            CFString::new(constants::SECURITY_KEY_CLASS),
-            CFString::new(constants::SECURITY_KEY_ATTRIBUTE_SERVICE),
-            CFString::new(constants::SECURITY_KEY_ATTRIBUTE_ACCOUNT),
-            CFString::new(constants::SECURITY_KEY_VALUE_DATA),
-        ];
+        let query: CFDictionary<CFString, CFType> = CFDictionary::from_CFType_pairs(&[
+            (CFString::new(constants::SECURITY_KEY_CLASS), CFString::new(constants::SECURITY_KEY_CLASS_GENERIC_PASSWORD).as_CFType()),
+            (CFString::new(constants::SECURITY_KEY_ATTRIBUTE_SERVICE), service.as_CFType()),
+            (CFString::new(constants::SECURITY_KEY_ATTRIBUTE_ACCOUNT), account.as_CFType()),
+            (CFString::new(constants::SECURITY_KEY_VALUE_DATA), value.as_CFType()),
+        ]);
 
-        let values: Vec<CFString> = vec![
-            CFString::new(constants::SECURITY_KEY_CLASS_GENERIC_PASSWORD),
-            service,
-            account,
-            CFString::new(password),
-        ];
-
-        let query: CFDictionaryRef = make_dictionary(keys, values).as_concrete_TypeRef();
-
-        let status: OSStatus = unsafe { SecItemAdd(query, null_mut()) };
+        let status: OSStatus = unsafe { SecItemAdd(query.as_concrete_TypeRef(), null_mut()) };
 
         if status == 0 {
             Ok(())
@@ -56,65 +45,46 @@ impl Keychain for KeychainService {
         }
     }
 
-    fn get_password(&self, service: &str, account: &str) -> error::Result<String> {
+    fn retrieve(&self, service: &str, account: &str) -> Result<Vec<u8>> {
         let service: CFString = CFString::new(service);
         let account: CFString = CFString::new(account);
 
-        let keys: Vec<CFString> = vec![
-            CFString::new(constants::SECURITY_KEY_CLASS),
-            CFString::new(constants::SECURITY_KEY_ATTRIBUTE_SERVICE),
-            CFString::new(constants::SECURITY_KEY_ATTRIBUTE_ACCOUNT),
-            CFString::new(constants::SECURITY_KEY_RETURN_DATA),
-            CFString::new(constants::SECURITY_KEY_MATCH_LIMIT),
-        ];
-
-        let values: Vec<CFString> = vec![
-            CFString::new(constants::SECURITY_KEY_CLASS_GENERIC_PASSWORD),
-            service,
-            account,
-            CFString::new("true"),
-            CFString::new(constants::SECURITY_KEY_MATCH_LIMIT_ONE),
-        ];
-
-        let query: CFDictionaryRef = make_dictionary(keys, values).as_concrete_TypeRef();
+        let query: CFDictionary<CFString, CFType> = CFDictionary::from_CFType_pairs(&[
+            (CFString::new(constants::SECURITY_KEY_CLASS), CFString::new(constants::SECURITY_KEY_CLASS_GENERIC_PASSWORD).as_CFType()),
+            (CFString::new(constants::SECURITY_KEY_ATTRIBUTE_SERVICE), service.as_CFType()),
+            (CFString::new(constants::SECURITY_KEY_ATTRIBUTE_ACCOUNT), account.as_CFType()),
+            (CFString::new(constants::SECURITY_KEY_RETURN_DATA), CFString::new("true").as_CFType()),
+            (CFString::new(constants::SECURITY_KEY_MATCH_LIMIT), CFString::new(constants::SECURITY_KEY_MATCH_LIMIT_ONE).as_CFType()),
+        ]);
 
         let mut result: CFTypeRef = null_mut();
 
-        let status: OSStatus = unsafe { SecItemCopyMatching(query, &mut result) };
+        let status: OSStatus = unsafe { SecItemCopyMatching(query.as_concrete_TypeRef(), &mut result) };
 
         if status == 0 {
-            let data = unsafe { CFString::wrap_under_create_rule(result as CFStringRef) };
-            Ok(data.to_string())
-        } else {
+            let data = unsafe { CFData::wrap_under_create_rule(result as *mut _) };
+            Ok(data.bytes().to_vec())
+        } else { 
             Err(status.into())
         }
     }
 
-    fn update_password(&self, service: &str, account: &str, new_password: &str) -> error::Result<()> {
+    fn update(&self, service: &str, account: &str, data: &[u8]) -> Result<()> {
         let service: CFString = CFString::new(service);
         let account: CFString = CFString::new(account);
-        let new_pasword: &[u8] = new_password.as_bytes();
-        let new_password: &str = from_utf8(new_pasword)?;
+        let value = CFData::from_buffer(data);
 
-        let keys: Vec<CFString> = vec![
-            CFString::new(constants::SECURITY_KEY_CLASS),
-            CFString::new(constants::SECURITY_KEY_ATTRIBUTE_SERVICE),
-            CFString::new(constants::SECURITY_KEY_ATTRIBUTE_ACCOUNT),
-        ];
+        let query: CFDictionary<CFString, CFType> = CFDictionary::from_CFType_pairs(&[
+            (CFString::new(constants::SECURITY_KEY_CLASS), CFString::new(constants::SECURITY_KEY_CLASS_GENERIC_PASSWORD).as_CFType()),
+            (CFString::new(constants::SECURITY_KEY_ATTRIBUTE_SERVICE), service.as_CFType()),
+            (CFString::new(constants::SECURITY_KEY_ATTRIBUTE_ACCOUNT), account.as_CFType()),
+        ]);
 
-        let values: Vec<CFString> = vec![
-            CFString::new(constants::SECURITY_KEY_CLASS_GENERIC_PASSWORD),
-            service,
-            account,
-        ];
+        let attributes: CFDictionary<CFString, CFType> = CFDictionary::from_CFType_pairs(&[
+            (CFString::new(constants::SECURITY_KEY_VALUE_DATA), value.as_CFType()),
+        ]);
 
-        let query: CFDictionaryRef = make_dictionary(keys, values).as_concrete_TypeRef();
-
-        let update_keys: Vec<CFString> = vec![CFString::new(constants::SECURITY_KEY_VALUE_DATA)];
-        let update_values: Vec<CFString> = vec![CFString::new(new_password)];
-        let update_attr: CFDictionaryRef = make_dictionary(update_keys, update_values).as_concrete_TypeRef();
-
-        let status: OSStatus = unsafe { SecItemUpdate(query, update_attr) };
+        let status: OSStatus = unsafe { SecItemUpdate(query.as_concrete_TypeRef(), attributes.as_concrete_TypeRef()) };
 
         if status == 0 {
             Ok(())
@@ -123,25 +93,17 @@ impl Keychain for KeychainService {
         }
     }
 
-    fn delete_password(&self, service: &str, account: &str) -> error::Result<()> {
+    fn delete(&self, service: &str, account: &str) -> Result<()> {
         let service: CFString = CFString::new(service);
         let account: CFString = CFString::new(account);
 
-        let keys: Vec<CFString> = vec![
-            CFString::new(constants::SECURITY_KEY_CLASS),
-            CFString::new(constants::SECURITY_KEY_ATTRIBUTE_SERVICE),
-            CFString::new(constants::SECURITY_KEY_ATTRIBUTE_ACCOUNT),
-        ];
+        let query: CFDictionary<CFString, CFType> = CFDictionary::from_CFType_pairs(&[
+            (CFString::new(constants::SECURITY_KEY_CLASS), CFString::new(constants::SECURITY_KEY_CLASS_GENERIC_PASSWORD).as_CFType()),
+            (CFString::new(constants::SECURITY_KEY_ATTRIBUTE_SERVICE), service.as_CFType()),
+            (CFString::new(constants::SECURITY_KEY_ATTRIBUTE_ACCOUNT), account.as_CFType()),
+        ]);
 
-        let values: Vec<CFString> = vec![
-            CFString::new(constants::SECURITY_KEY_CLASS_GENERIC_PASSWORD),
-            service,
-            account,
-        ];
-
-        let query: CFDictionaryRef = make_dictionary(keys, values).as_concrete_TypeRef();
-
-        let status: OSStatus = unsafe { SecItemDelete(query) };
+        let status: OSStatus = unsafe { SecItemDelete(query.as_concrete_TypeRef()) };
 
         if status == 0 {
             Ok(())
@@ -151,10 +113,6 @@ impl Keychain for KeychainService {
     }
 }
 
-fn make_dictionary(keys: Vec<CFString>, values: Vec<CFString>) -> CFDictionary<CFString, CFString> {
-    let kv_pairs: &Vec<(CFString, CFString)> = &keys.into_iter()
-        .zip(values)
-        .collect();
 
     CFDictionary::from_CFType_pairs(kv_pairs)
 }
