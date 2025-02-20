@@ -1,4 +1,3 @@
-extern crate libc;
 extern crate core_foundation;
 
 use core_foundation::base::CFTypeRef;
